@@ -1,0 +1,60 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Proprietário (único que altera a lista de anfitriões). Outros anfitriões: ver config/admins.
+    function owner(){ return request.auth != null && request.auth.token.email == 'SEU_EMAIL_DE_ADMIN@exemplo.com'; }
+    function admin(){ return owner() || (request.auth != null && request.auth.token.email != null
+      && exists(/databases/$(database)/documents/config/admins)
+      && request.auth.token.email in get(/databases/$(database)/documents/config/admins).data.emails); }
+    function onlyKeys(k){ return request.resource.data.keys().hasOnly(k); }
+
+    match /guests/{code} {
+      allow get: if true;                 // só quem tem o código (longo e aleatório) abre o convite
+      allow list, create, delete: if admin();
+      allow update: if admin() || (
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['seen','seenAt','status','count','answeredAt','diet','obs'])
+        && request.resource.data.status in ['pendente','confirmado','recusado']
+        && (!('diet' in request.resource.data) || (request.resource.data.diet is string && request.resource.data.diet.size() <= 200))
+        && (!('obs' in request.resource.data) || (request.resource.data.obs is string && request.resource.data.obs.size() <= 300))
+        && request.resource.data.count is int && request.resource.data.count >= 0 && request.resource.data.count <= resource.data.max);
+    }
+
+    // controlo de frequência: 1 mensagem por minuto por visitante (login anónimo)
+    match /config/admins {
+      allow read: if admin();
+      allow write: if owner();
+    }
+
+    match /convites/{id} { allow read, write: if admin(); }
+    match /publico/{id} {                  // convite publicado a partir do editor
+      allow get: if true;
+      allow write: if admin();
+    }
+    match /fotos/{id} {                    // fotos comprimidas enviadas pelo editor
+      allow get: if true;
+      allow create, update: if admin() && request.resource.data.keys().hasOnly(['data','name','at']) && request.resource.data.data.size() < 900000;
+      allow delete: if admin();
+    }
+
+    match /limits/{uid} {
+      allow read: if admin();
+      allow create: if request.auth != null && request.auth.uid == uid && onlyKeys(['at']) && request.resource.data.at == request.time;
+      allow update: if request.auth != null && request.auth.uid == uid && onlyKeys(['at']) && request.resource.data.at == request.time
+        && request.time > resource.data.at + duration.value(60, 's');
+    }
+
+    match /wishes/{id} {
+      allow read: if resource.data.approved == true || admin();
+      allow create: if admin() || (
+        request.auth != null && onlyKeys(['name','msg','approved','at','uid'])
+        && request.resource.data.approved == false && request.resource.data.uid == request.auth.uid
+        && request.resource.data.at == request.time
+        && request.resource.data.name is string && request.resource.data.msg is string
+        && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 80
+        && request.resource.data.msg.size() > 0 && request.resource.data.msg.size() <= 500
+        && !request.resource.data.msg.matches('(?i).*(https?:|www\\.).*')
+        && getAfter(/databases/$(database)/documents/limits/$(request.auth.uid)).data.at == request.time);
+      allow update, delete: if admin();
+    }
+  }
+}

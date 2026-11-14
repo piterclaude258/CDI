@@ -1,0 +1,166 @@
+<!DOCTYPE html><html lang="pt-PT"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Editor de convites</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond&family=Playfair+Display&family=Great+Vibes&family=Montserrat&family=Dancing+Script&family=Cinzel&family=Lora&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<style>*{box-sizing:border-box}body{margin:0;font:14px system-ui,sans-serif;background:#f4f2ed;color:#222}.top{display:flex;flex-wrap:wrap;gap:6px;padding:8px;background:#fff;border-bottom:1px solid #ddd;align-items:center}
+.app{display:grid;grid-template-columns:minmax(330px,450px) 1fr;height:calc(100vh - 56px)}.ed{overflow:auto;padding:10px;background:#fff;border-right:1px solid #ddd}.pv{padding:10px;display:flex;flex-direction:column;align-items:center;gap:8px;overflow:auto}
+iframe{border:1px solid #bbb;border-radius:12px;background:#fff;flex:1;min-height:500px;transition:width .2s}
+label{display:block;font-size:12px;color:#666;margin:8px 0 2px}input,select,textarea{width:100%;padding:7px;border:1px solid #ccc;border-radius:6px;font:inherit}input[type=color]{padding:1px;height:34px}textarea{min-height:56px}
+button{padding:7px 11px;border:1px solid #bbb;border-radius:6px;background:#fafafa;cursor:pointer;font:inherit}button.p{background:#9a7b3c;color:#fff;border-color:#9a7b3c}
+details{border:1px solid #e3e0d8;border-radius:8px;margin:8px 0;padding:6px 10px}summary{cursor:pointer;font-weight:600}.r2{display:grid;grid-template-columns:1fr 1fr;gap:6px}.r3{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}.row{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0;align-items:center}
+.it{border:1px solid #e3e0d8;border-radius:8px;padding:6px 8px;margin:8px 0;background:#faf9f6}.sw{width:56px;height:30px;border-radius:6px;border:1px solid #bbb;font-size:10px;padding:0}.ok{color:#176b2c}.bad{color:#b3261e}small{color:#777}
+.md{position:fixed;inset:0;background:#000a;display:flex;align-items:center;justify-content:center;z-index:50}.md>div{background:#fff;padding:16px;border-radius:12px;max-width:460px;width:92%;max-height:90vh;overflow:auto}.md button{display:block;width:100%;margin:6px 0;text-align:left}
+@media(max-width:800px){.app{grid-template-columns:1fr;height:auto}}</style></head><body>
+<div class="top"><select id="sel" style="width:auto"></select><button id="nw">Novo…</button><button id="dp">Duplicar</button><button id="rn">Renomear</button><button id="dl">Apagar</button><span style="flex:1"></span>
+<span id="cl"></span><span id="cs"><small></small></span><button id="pb" class="p">🌐 Publicar no site</button><button id="ej">⬇ .json</button><button id="ec">⬇ config.js</button><button id="im">⬆ Importar</button><input type="file" id="fi" accept=".json" hidden></div>
+<div class="app"><div class="ed" id="ed"></div><div class="pv"><div class="row"><button data-w="390">📱</button><button data-w="820">Tablet</button><button data-w="100%">💻</button>
+<select id="gl" style="width:auto"><option value="pt">PT</option><option value="en">EN</option></select><input id="gn" placeholder="👤 Ver como convidado: nome" style="width:190px"><input id="gm" type="number" min="1" value="2" style="width:62px" title="Máx. pessoas"></div>
+<iframe id="fr" src="index.html" style="width:390px" title="Pré-visualização"></iframe>
+<div class="row"><b>Cartaz:</b><select id="pmd" style="width:auto"><option>Clássico</option><option>Moderno</option><option>Foto</option><option>Minimal</option></select><select id="psz" style="width:auto"><option>A5 (impressão)</option><option>Story 9:16</option><option>Quadrado</option></select><input id="pqr" placeholder="Endereço para o QR (opcional)" style="width:210px"><button id="pi">PNG</button><button id="pj">JPG</button><button id="pp">PDF</button></div></div></div>
+<script type="module">
+import {FB,EV as E0} from './config.js';
+import {initializeApp} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+import {getAuth,connectAuthEmulator,signInWithEmailAndPassword,signOut,onAuthStateChanged} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+import {getFirestore,connectFirestoreEmulator,doc,getDoc,setDoc,deleteDoc,collection,getDocs,serverTimestamp} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+const $=s=>document.querySelector(s),X=(v,l='pt')=>v&&typeof v==='object'?(v[l]||v.pt||''):(v??'');
+const h=(t,p={},...k)=>{const e=Object.assign(document.createElement(t),p);e.append(...k);return e};
+const kod=()=>{const b=new Uint8Array(12);crypto.getRandomValues(b);return [...b].map(x=>'abcdefghijkmnpqrstuvwxyz23456789'[x%32]).join('')};
+const app=initializeApp(FB),auth=getAuth(app),db=getFirestore(app);
+if(new URLSearchParams(location.search).get('emu')==='1'){connectFirestoreEmulator(db,'localhost',8080);connectAuthEmulator(auth,'http://localhost:9099',{disableWarnings:true})}
+const TH={'Clássico dourado':{bg:'#fbf6ef',ac:'#b8924a',tx:'#3b3228'},'Romântico':{bg:'#fff1f3',ac:'#c2587a',tx:'#4a2a35'},'Moderno':{bg:'#f4f6f8',ac:'#1f6feb',tx:'#14202e'},'Natureza':{bg:'#f1f5ec',ac:'#4f7a3a',tx:'#26331f'},'Noite':{bg:'#14161f',ac:'#d9b45a',tx:'#f1ecdf'},'Rosa blush':{bg:'#fdf0ee',ac:'#c9806f',tx:'#4b3430'},'Azul real':{bg:'#f2f5fb',ac:'#1d3f8a',tx:'#1b2438'}};
+const PAL={...TH,'Terracota':{bg:'#fbf1e8',ac:'#b4532a',tx:'#3a2418'},'Sálvia':{bg:'#f3f5f0',ac:'#6b8a6d',tx:'#243126'},'Lavanda':{bg:'#f6f3fb',ac:'#7d5bb5',tx:'#2c2342'},'Vinho':{bg:'#fbf3f4',ac:'#8a1f3d',tx:'#35151f'},'Preto e ouro':{bg:'#0e0e0e',ac:'#e0b84f',tx:'#f5efe0'},'Festa':{bg:'#fff8e7',ac:'#ff6b6b',tx:'#2d3047'}};
+const FONTS=['Cormorant Garamond','Playfair Display','Great Vibes','Montserrat','Dancing Script','Cinzel','Lora'];
+const B={tipo:'Casamento',intro:{pt:'Casamento de',en:'Wedding of'},n1:'Ana',n2:'Pedro',cidade:'Maputo',data:'2027-03-20T09:00',fuso:2,criancas:false,texto:{pt:'',en:''},tema:'Clássico dourado',cores:{},fonte:'Cormorant Garamond',moldura:'dupla',padrao:'pontos',efeito:'petalas',foto:'',fundos:{info:'',programa:'',galeria:''},musica:'',galeria:[],prog:[],vestuario:{texto:{pt:'',en:''},cores:[]},presentes:{texto:{pt:'',en:''},itens:[]},faq:[]};
+const P=(h,t,te,l,le)=>({h,t:{pt:t,en:te},l:{pt:l,en:le||l},m:'',geo:'',dur:60}),Q=(q,qe,a,ae)=>({q:{pt:q,en:qe},a:{pt:a,en:ae}});
+const TPL={
+'Casamento clássico':{...B,texto:{pt:'As nossas famílias têm a alegria de o(a) convidar para celebrar connosco este dia tão especial.',en:'Our families are delighted to invite you to celebrate this special day with us.'},
+ prog:[P('09H00','Cerimónia Civil','Civil Ceremony','Salão Exemplo'),P('10H00','Cerimónia Religiosa','Church Ceremony','Igreja Exemplo'),P('14H00','Copo d’Água','Reception','Salão Exemplo')],
+ vestuario:{texto:{pt:'Traje social. Pedimos que evite branco e creme.',en:'Formal attire. Please avoid white and cream.'},cores:['#b8924a','#3b3228','#e8d9c0']},
+ presentes:{texto:{pt:'A sua presença é o nosso maior presente. Se desejar oferecer algo:',en:'Your presence is our greatest gift. If you wish to give something:'},itens:[{t:{pt:'M-Pesa',en:'M-Pesa'},v:'84 000 0000'}]},
+ faq:[Q('Onde posso estacionar?','Where can I park?','Há estacionamento no local do copo d’água.','There is parking at the reception venue.'),Q('Há hotéis por perto?','Any hotels nearby?','Sugerimos o Hotel Exemplo.','We suggest Hotel Example.')]},
+'Casamento moderno':{...B,tema:'Moderno',fonte:'Montserrat',moldura:'simples',padrao:'linhas',efeito:'nenhum',texto:{pt:'O amor trouxe-nos até aqui. Venha celebrar o início da nossa vida a dois.',en:'Love brought us here. Come celebrate the start of our life together.'},
+ prog:[P('15H00','Cerimónia','Ceremony','Jardim Exemplo'),P('18H00','Jantar e festa','Dinner & party','Jardim Exemplo')],vestuario:{texto:{pt:'Elegante casual.',en:'Smart casual.'},cores:['#1f6feb','#14202e','#f4f6f8']},presentes:{texto:{pt:'',en:''},itens:[]},faq:[]},
+'Aniversário infantil':{...B,tipo:'Aniversário',intro:{pt:'Aniversário de',en:'Birthday of'},n1:'Lucas',n2:'',tema:'Festa',fonte:'Dancing Script',moldura:'simples',padrao:'pontos',efeito:'confetes',criancas:true,data:'2027-05-15T15:00',
+ texto:{pt:'Venha brincar, cantar os parabéns e comer bolo! O Lucas faz anos e quer a sua companhia.',en:'Come play, sing happy birthday and eat cake! Lucas is turning a year older and wants you there.'},
+ prog:[P('15H00','Chegada e brincadeiras','Arrival & games','Salão de festas'),P('17H00','Parabéns e bolo','Cake & singing','Salão de festas')],vestuario:{texto:{pt:'Roupa confortável para brincar.',en:'Comfortable clothes for playing.'},cores:['#ff6b6b','#ffd166','#06d6a0']},
+ presentes:{texto:{pt:'',en:''},itens:[]},faq:[Q('Os pais podem ficar?','Can parents stay?','Claro! Há lugar para todos.','Of course! There is room for everyone.')]},
+'Batizado':{...B,tipo:'Batizado',intro:{pt:'Batizado de',en:'Baptism of'},n1:'Sofia',n2:'',tema:'Azul real',fonte:'Cormorant Garamond',moldura:'dupla',padrao:'losangos',efeito:'petalas',data:'2027-04-10T10:00',
+ texto:{pt:'Com imensa alegria, convidamo-lo(a) para o batizado de Sofia, um momento de fé e gratidão em família.',en:'With great joy, we invite you to the baptism of Sofia, a moment of faith and gratitude with family.'},
+ prog:[P('10H00','Cerimónia de batismo','Baptism ceremony','Igreja Exemplo'),P('12H30','Almoço em família','Family lunch','Salão Exemplo')],vestuario:{texto:{pt:'Traje social, cores claras.',en:'Formal, light colours.'},cores:['#1d3f8a','#f2f5fb','#c9d4ee']},presentes:{texto:{pt:'',en:''},itens:[]},faq:[]},
+'Formatura':{...B,tipo:'Outro',intro:{pt:'Formatura de',en:'Graduation of'},n1:'Carlos',n2:'',tema:'Noite',fonte:'Playfair Display',moldura:'simples',padrao:'nenhum',efeito:'confetes',data:'2027-07-10T18:00',
+ texto:{pt:'Depois de tanto esforço, chegou o dia. Celebre connosco esta conquista!',en:'After so much effort, the day has come. Celebrate this achievement with us!'},
+ prog:[P('18H00','Cerimónia de formatura','Graduation ceremony','Universidade Exemplo'),P('20H30','Jantar de celebração','Celebration dinner','Restaurante Exemplo')],vestuario:{texto:{pt:'Traje social.',en:'Formal attire.'},cores:['#d9b45a','#14161f']},presentes:{texto:{pt:'',en:''},itens:[]},faq:[]}};
+const GEN={Casamento:{intro:['Casamento de','Wedding of'],t:[['As nossas famílias têm a alegria de o(a) convidar para celebrar connosco este dia tão especial.','Our families are delighted to invite you to celebrate this special day with us.'],['Com a bênção de Deus e dos nossos pais, {n1} e {n2} convidam-no(a) para o seu casamento.','With the blessing of God and our parents, {n1} and {n2} invite you to their wedding.']]},
+'Aniversário':{intro:['Aniversário de','Birthday of'],t:[['Venha celebrar comigo mais um ano de vida!','Come celebrate another year of life with me!'],['Mais um ano, mais uma razão para festejar. Conto consigo!','Another year, another reason to celebrate. I’m counting on you!']]},
+Batizado:{intro:['Batizado de','Baptism of'],t:[['Com imensa alegria, convidamo-lo(a) para o batizado de {n1}.','With great joy, we invite you to the baptism of {n1}.']]},Outro:{intro:['Convite de','Invitation from'],t:[['Temos o prazer de o(a) convidar para um evento muito especial.','We are pleased to invite you to a very special event.']]}};
+let ST;try{ST=JSON.parse(localStorage.getItem('conv-ed'))}catch(e){}
+ST=ST&&ST.list?.length?ST:{cur:0,list:[{name:'Convite 1',ev:structuredClone(TPL['Casamento clássico']),t:0}]};
+const it=()=>ST.list[ST.cur],cur=()=>it().ev,saveL=()=>{try{localStorage.setItem('conv-ed',JSON.stringify(ST))}catch(e){}};
+const g=(o,p)=>p.split('.').reduce((a,k)=>a?.[k],o),st=(o,p,v)=>{const k=p.split('.');let a=o;k.slice(0,-1).forEach(x=>a=a[x]??={});a[k.at(-1)]=v};
+const bi=v=>typeof v==='object'&&v?{pt:v.pt||'',en:v.en||''}:{pt:v||'',en:''};
+function fix(e){e.intro=bi(e.intro);e.texto=bi(e.texto);e.vestuario??={};e.vestuario.texto=bi(e.vestuario.texto);e.vestuario.cores??=[];e.presentes??={};e.presentes.texto=bi(e.presentes.texto);
+ e.prog=(e.prog||[]).map(p=>({h:p.h||'',t:bi(p.t),l:bi(p.l),m:p.m||'',geo:p.geo||'',dur:p.dur||60}));e.presentes.itens=(e.presentes.itens||[]).map(i=>({t:bi(i.t),v:i.v||''}));
+ e.faq=(e.faq||[]).map(q=>({q:bi(q.q),a:bi(q.a)}));e.galeria??=[];e.fundos??={};e.cores??={};e.fuso??=2;e.efeito??='petalas';e.moldura??='dupla';e.padrao??='pontos'}
+const lum=h=>{const n=parseInt(h.slice(1),16),f=v=>{v/=255;return v<=.03928?v/12.92:((v+.055)/1.055)**2.4};return .2126*f(n>>16)+.7152*f(n>>8&255)+.0722*f(n&255)};
+const cr=(a,b)=>{const x=lum(a),y=lum(b);return (Math.max(x,y)+.05)/(Math.min(x,y)+.05)};
+const cols=e=>({...(TH[e.tema]||TH['Clássico dourado']),...e.cores});
+const mix=(c,t,k)=>{const n=parseInt(c.slice(1),16),m=parseInt(t.slice(1),16),f=s=>Math.round((n>>s&255)*(1-k)+(m>>s&255)*k);return '#'+[16,8,0].map(s=>f(s).toString(16).padStart(2,'0')).join('')};
+// ---------- nuvem ----------
+let USER=null,tm,PH={};
+const cs=m=>$('#cs').firstChild.textContent=m||'';
+onAuthStateChanged(auth,u=>{USER=u&&!u.isAnonymous&&u.email?u:null;cloudUI();if(USER)pull()});
+function cloudUI(){const c=$('#cl');c.textContent='';if(USER)c.append(h('small',{textContent:'☁ '+USER.email+' '}),h('button',{textContent:'Sair',onclick:()=>signOut(auth)}));
+ else{const em=h('input',{type:'email',placeholder:'email',style:'width:140px'}),pw=h('input',{type:'password',placeholder:'palavra-passe',style:'width:120px'});c.append(em,pw,h('button',{textContent:'☁ Entrar',onclick:()=>signInWithEmailAndPassword(auth,em.value,pw.value).catch(()=>alert('Credenciais inválidas'))}))}}
+async function pull(){try{cs('a sincronizar…');const sn=await getDocs(collection(db,'convites'));
+ sn.docs.forEach(d=>{const c=d.data(),l=ST.list.find(x=>x.cid===d.id);if(!l)ST.list.push({name:c.name,ev:JSON.parse(c.json),cid:d.id,t:c.t||0});else if((c.t||0)>(l.t||0)){l.name=c.name;l.ev=JSON.parse(c.json);l.t=c.t}});
+ for(const l of ST.list){if(!l.cid)l.cid=kod();if(!sn.docs.find(d=>d.id===l.cid))await up(l)}
+ saveL();sel();form();push();cs('☁ sincronizado')}catch(e){cs('erro ao sincronizar')}}
+const up=l=>setDoc(doc(db,'convites',l.cid),{name:l.name,json:JSON.stringify(l.ev),t:l.t||Date.now(),updatedAt:serverTimestamp()});
+function cloudSave(){if(!USER)return;clearTimeout(tm);cs('a guardar…');tm=setTimeout(async()=>{const l=it();l.cid??=kod();try{await up(l);saveL();cs('☁ guardado')}catch(e){cs('erro ao guardar')}},1500)}
+// ---------- fotos ----------
+async function compress(f,max){const bm=await createImageBitmap(f),s=Math.min(1,max/Math.max(bm.width,bm.height)),cv=h('canvas',{width:Math.round(bm.width*s),height:Math.round(bm.height*s)});cv.getContext('2d').drawImage(bm,0,0,cv.width,cv.height);
+ let q=.8,d;do{d=cv.toDataURL('image/jpeg',q);q-=.08}while(d.length>800000&&q>.3);return d}
+async function upload(f,max=1280){if(!USER){alert('Entre na nuvem (topo) para carregar fotos.');return null}
+ try{const d=await compress(f,max),id=kod();await setDoc(doc(db,'fotos',id),{data:d,name:f.name.slice(0,60),at:serverTimestamp()});PH['fb:'+id]=d;return 'fb:'+id}catch(e){alert('Não foi possível carregar a foto (formato não suportado?).');return null}}
+async function loadImg(u){if(!u)return null;try{let s=u;if(u.startsWith('fb:')){s=PH[u];if(!s){s=(await getDoc(doc(db,'fotos',u.slice(3)))).data().data;PH[u]=s}}return await new Promise((r,j)=>{const i=new Image();i.onload=()=>r(i);i.onerror=j;i.src=s})}catch(_){return null}}
+const pick=(multi,cb)=>{const i=h('input',{type:'file',accept:'image/*',multiple:multi});i.onchange=async()=>{for(const f of i.files){const r=await upload(f,cb.max);if(r)cb.fn(r)}};i.click()};
+// ---------- formulário ----------
+const FD=(l,node)=>h('div',{},h('label',{textContent:l}),node);
+function inp(path,kind='text',opts){const e=cur();let el;if(kind==='sel'){el=h('select');opts.forEach(o=>el.append(h('option',{textContent:o})))}else if(kind==='area')el=h('textarea');else{el=h('input');if(kind==='dt')el.type='datetime-local';if(kind==='num')el.type='number';if(kind==='chk')el.type='checkbox',el.style.width='auto'}
+ const v=g(e,path);if(kind==='chk')el.checked=!!v;else el.value=v??'';el.oninput=el.onchange=()=>{st(e,path,kind==='chk'?el.checked:kind==='num'?+el.value:el.value);if(path==='tema'){e.cores={};form()}push()};return el}
+const F=(l,p,k,o)=>FD(l,inp(p,k,o));
+function imgF(l,path){const e=cur(),el=inp(path),b=h('button',{textContent:'📷 Carregar',onclick:()=>pick(false,{max:path==='foto'?800:1600,fn:r=>{st(e,path,r);el.value=r;push()}})});return FD(l,h('div',{className:'row'},h('div',{style:'flex:1'},el),b))}
+function LE(arr,cols,mk,label){const box=h('div'),draw=()=>{box.textContent='';arr.forEach((o,i)=>{const row=h('div',{className:'it'}),gr=h('div',{className:'r2'});
+  cols.forEach(c=>{const el=h(c.a?'textarea':'input',{value:g(o,c.p)??'',placeholder:c.l});el.oninput=()=>{st(o,c.p,el.value);push()};gr.append(FD(c.l,el))});row.append(gr,h('div',{className:'row'},
+  h('button',{textContent:'↑',onclick:()=>{if(i){[arr[i-1],arr[i]]=[arr[i],arr[i-1]];draw();push()}}}),h('button',{textContent:'↓',onclick:()=>{if(i<arr.length-1){[arr[i+1],arr[i]]=[arr[i],arr[i+1]];draw();push()}}}),h('button',{textContent:'Remover',onclick:()=>{arr.splice(i,1);draw();push()}})));box.append(row)});
+  box.append(h('button',{textContent:'+ '+label,onclick:()=>{arr.push(mk());draw();push()}}))};draw();return box}
+const SEC=(t,open,...n)=>{const d=h('details',{open},h('summary',{textContent:t}));d.append(...n);return d};
+function form(){const e=cur();fix(e);ed.textContent='';
+ ed.append(SEC('Evento',true,F('Tipo','tipo','sel',Object.keys(GEN)),F('Título (PT)','intro.pt'),F('Title (EN)','intro.en'),h('div',{className:'r2'},F('Nome 1','n1'),F('Nome 2 (vazio se for só um)','n2')),F('Cidade','cidade'),h('div',{className:'r2'},F('Data e hora','data','dt'),F('Fuso (UTC+)','fuso','num')),FD('Convite extensivo a crianças',inp('criancas','chk'))));
+ const gb=h('div',{className:'row'},h('button',{textContent:'✨ Sugerir texto',onclick:()=>{const G=GEN[e.tipo]||GEN.Outro,i=(+e._g||0)%G.t.length,f=s=>s.replaceAll('{n1}',e.n1||'').replaceAll('{n2}',e.n2||'');e._g=i+1;e.texto={pt:f(G.t[i][0]),en:f(G.t[i][1])};e.intro={pt:G.intro[0],en:G.intro[1]};form();push()}}),
+  h('button',{textContent:'Copiar pedido para o Claude',onclick:()=>navigator.clipboard.writeText(`Escreve 3 textos curtos e calorosos de convite (português de Portugal e inglês) para um(a) ${e.tipo} de ${e.n1||''}${e.n2?' e '+e.n2:''} em ${e.cidade||''}. Máx. 40 palavras cada.`).then(()=>alert('Pedido copiado.'))}));
+ ed.append(SEC('Textos',true,F('Texto do convite (PT)','texto.pt','area'),F('Invitation text (EN)','texto.en','area'),gb));
+ ed.append(SEC('Programa',false,LE(e.prog,[{p:'h',l:'Hora'},{p:'t.pt',l:'Momento (PT)'},{p:'t.en',l:'Moment (EN)'},{p:'l.pt',l:'Local (PT)'},{p:'l.en',l:'Place (EN)'},{p:'m',l:'Link do mapa'},{p:'geo',l:'Coordenadas (lat,lng)'},{p:'dur',l:'Duração (min)'}],()=>({h:'',t:{pt:'',en:''},l:{pt:'',en:''},m:'',geo:'',dur:60}),'Adicionar momento')));
+ // estilo
+ const pal=h('div',{className:'row'});Object.entries(PAL).forEach(([n,c])=>pal.append(h('button',{className:'sw',textContent:n.slice(0,8),style:`background:${c.bg};color:${c.tx};border-color:${c.ac}`,title:n,onclick:()=>{e.cores={...c};form();push()}})));
+ const cc=h('div',{className:'r3'});[['bg','Fundo'],['ac','Destaque'],['tx','Texto']].forEach(([k,l])=>{const i=h('input',{type:'color',value:cols(e)[k]});i.oninput=()=>{if(!Object.keys(e.cores).length)e.cores={...cols(e)};e.cores[k]=i.value;ct();push()};cc.append(FD(l,i))});
+ const ctb=h('p');const ct=()=>{const c=cols(e),a=cr(c.tx,c.bg),b=cr(c.ac,c.bg);ctb.innerHTML=`Texto/fundo: <b class="${a>=4.5?'ok':'bad'}">${a.toFixed(1)}:1 ${a>=7?'AAA ✓':a>=4.5?'AA ✓':'fraco ✗'}</b><br>Destaque/fundo: <b class="${b>=3?'ok':'bad'}">${b.toFixed(1)}:1 ${b>=4.5?'AA ✓':b>=3?'ok p/ títulos ✓':'fraco ✗'}</b>`};ct();
+ ed.append(SEC('Estilo',false,F('Tema','tema','sel',Object.keys(TH)),F('Letra','fonte','sel',FONTS),h('div',{className:'r3'},F('Moldura','moldura','sel',['dupla','floral','simples','nenhuma']),F('Padrão','padrao','sel',['pontos','linhas','losangos','nenhum']),F('Efeito','efeito','sel',['petalas','confetes','nenhum'])),FD('Paletas sugeridas',pal),cc,ctb,
+  h('button',{textContent:'Ajustar contraste automaticamente',onclick:()=>{const c={...cols(e)};if(cr(c.tx,c.bg)<7)c.tx=lum(c.bg)>.4?'#1a1a1a':'#f5f5f5';let k=0;while(cr(c.ac,c.bg)<3&&k++<30)c.ac=mix(c.ac,lum(c.bg)>.4?'#000000':'#ffffff',.1);e.cores=c;form();push()}})));
+ // fotos
+ const gal=h('div'),dg=()=>{gal.textContent='';e.galeria.forEach((u,i)=>gal.append(h('div',{className:'row'},h('input',{value:u,style:'flex:1',oninput:ev=>{e.galeria[i]=ev.target.value;push()}}),h('button',{textContent:'✕',onclick:()=>{e.galeria.splice(i,1);dg();push()}}))))};dg();
+ ed.append(SEC('Fotos e música',false,imgF('Foto da capa (vazio = monograma)','foto'),imgF('Fundo — informação','fundos.info'),imgF('Fundo — programa','fundos.programa'),imgF('Fundo — galeria','fundos.galeria'),F('Música (link .mp3)','musica'),
+  h('label',{textContent:'Galeria'}),gal,h('button',{textContent:'📷 Carregar fotos (várias)',onclick:()=>pick(true,{max:1280,fn:r=>{e.galeria.push(r);dg();push()}})}),h('p',{},h('small',{textContent:'As fotos são comprimidas automaticamente (até 1280 px) e ficam guardadas no Firebase. É preciso estar na nuvem (☁ Entrar).'}))));
+ const cv=h('div',{className:'row'}),dcv=()=>{cv.textContent='';e.vestuario.cores.forEach((c,i)=>cv.append(h('input',{type:'color',value:c,style:'width:50px',oninput:ev=>{e.vestuario.cores[i]=ev.target.value;push()}}),h('button',{textContent:'✕',onclick:()=>{e.vestuario.cores.splice(i,1);dcv();push()}})));cv.append(h('button',{textContent:'+ cor',onclick:()=>{e.vestuario.cores.push('#b8924a');dcv();push()}}))};dcv();
+ ed.append(SEC('Vestuário',false,F('Texto (PT)','vestuario.texto.pt','area'),F('Text (EN)','vestuario.texto.en','area'),FD('Cores sugeridas',cv)));
+ ed.append(SEC('Presentes',false,F('Texto (PT)','presentes.texto.pt','area'),F('Text (EN)','presentes.texto.en','area'),LE(e.presentes.itens,[{p:'t.pt',l:'Título (PT)'},{p:'t.en',l:'Title (EN)'},{p:'v',l:'Valor / número'}],()=>({t:{pt:'',en:''},v:''}),'Adicionar')));
+ ed.append(SEC('Perguntas frequentes',false,LE(e.faq,[{p:'q.pt',l:'Pergunta (PT)'},{p:'q.en',l:'Question (EN)'},{p:'a.pt',l:'Resposta (PT)',a:1},{p:'a.en',l:'Answer (EN)',a:1}],()=>({q:{pt:'',en:''},a:{pt:'',en:''}}),'Adicionar')));
+ ed.append(SEC('Firebase (para config.js)',false,h('label',{textContent:'Configuração JSON'}),h('textarea',{value:localStorage.getItem('conv-fb')||'',placeholder:'{"apiKey":"…"}',oninput:ev=>{try{localStorage.setItem('conv-fb',ev.target.value)}catch(_){}}})))}
+const ed=$('#ed'),fr=$('#fr');
+function push(){const t=it();t.t=Date.now();saveL();const n=$('#gn').value.trim();fr.contentWindow?.postMessage({ev:cur(),guest:n?{name:n,max:Math.max(1,+$('#gm').value||1),status:'pendente',count:0,lang:$('#gl').value}:null,lang:$('#gl').value},'*');cloudSave()}
+addEventListener('message',e=>{if(e.data?.ready)push()});fr.onload=push;['gn','gm','gl'].forEach(i=>$('#'+i).oninput=push);
+function sel(){$('#sel').innerHTML=ST.list.map((x,i)=>`<option value="${i}">${x.name.replace(/</g,'&lt;')}</option>`).join('');$('#sel').value=ST.cur}
+$('#sel').onchange=e=>{ST.cur=+e.target.value;saveL();form();push()};
+const modal=(...n)=>{const b=h('div',{className:'md'},h('div',{},...n,h('button',{textContent:'Cancelar',onclick:()=>b.remove()})));document.body.append(b);return b};
+const add=(name,ev)=>{ST.list.push({name,ev,cid:kod(),t:Date.now()});ST.cur=ST.list.length-1;sel();form();push()};
+$('#nw').onclick=()=>{const m=modal(h('h3',{textContent:'Começar a partir de um modelo'}),...Object.keys(TPL).map(k=>h('button',{textContent:k+' — '+X(TPL[k].intro)+' '+TPL[k].n1,onclick:()=>{const n=prompt('Nome do convite?',k);if(n){m.remove();add(n,structuredClone(TPL[k]))}}})))};
+$('#dp').onclick=()=>add(it().name+' (cópia)',structuredClone(cur()));
+$('#rn').onclick=()=>{const n=prompt('Novo nome:',it().name);if(n){it().name=n;sel();push()}};
+$('#dl').onclick=async()=>{if(ST.list.length<2)return alert('Tem de ficar pelo menos um convite.');if(!confirm('Apagar este convite (também da nuvem)?'))return;const l=it();if(USER&&l.cid)try{await deleteDoc(doc(db,'convites',l.cid))}catch(e){}ST.list.splice(ST.cur,1);ST.cur=0;saveL();sel();form();push()};
+const dlf=(n,b,t)=>h('a',{href:URL.createObjectURL(b instanceof Blob?b:new Blob([b],{type:t})),download:n}).click(),slug=()=>it().name.toLowerCase().replace(/\W+/g,'-');
+const clean=()=>{const e=structuredClone(cur());delete e._g;return e};
+$('#ej').onclick=()=>dlf(slug()+'.json',JSON.stringify({name:it().name,ev:clean()},null,1),'application/json');
+$('#ec').onclick=()=>{let fb;try{fb=JSON.parse(localStorage.getItem('conv-fb'))}catch(e){}fb||=FB;dlf('config.js','export const FB='+JSON.stringify(fb,null,1)+';\nexport const EV='+JSON.stringify(clean(),null,1)+';\n','text/javascript')};
+$('#pb').onclick=async()=>{if(!USER)return alert('Entre na nuvem (topo) para publicar.');if(!confirm('Publicar "'+it().name+'" como o convite do site? Quem abrir o link verá esta versão.'))return;
+ try{await setDoc(doc(db,'publico','evento'),{json:JSON.stringify(clean()),at:serverTimestamp()});alert('Publicado! O site já mostra esta versão.')}catch(e){alert('Não foi possível publicar.')}};
+$('#im').onclick=()=>$('#fi').click();
+$('#fi').onchange=async ev=>{const f=ev.target.files[0];if(!f)return;try{const j=JSON.parse(await f.text());add(j.name||f.name,j.ev||j)}catch(e){alert('Ficheiro inválido.')}ev.target.value=''};
+document.querySelectorAll('[data-w]').forEach(b=>b.onclick=()=>fr.style.width=b.dataset.w);
+// ---------- cartaz ----------
+const SZ={'A5 (impressão)':[1260,1785],'Story 9:16':[1080,1920],'Quadrado':[1080,1080]};
+function pat(x,W,H,e,c){x.save();x.globalAlpha=.22;x.fillStyle=x.strokeStyle=c.ac;const p=e.padrao;
+ if(p==='pontos')for(let i=20;i<W;i+=40)for(let j=20;j<H;j+=40){x.beginPath();x.arc(i,j,2.2,0,7);x.fill()}
+ else if(p==='linhas'){x.lineWidth=1.5;for(let i=-H;i<W;i+=36){x.beginPath();x.moveTo(i,0);x.lineTo(i+H,H);x.stroke()}}
+ else if(p==='losangos')for(let i=0;i<W;i+=60)for(let j=0;j<H;j+=60){x.beginPath();x.moveTo(i+30,j+14);x.lineTo(i+46,j+30);x.lineTo(i+30,j+46);x.lineTo(i+14,j+30);x.closePath();x.fill()}x.restore()}
+function frm(x,W,H,e,c){const f=e.moldura;if(f==='nenhuma')return;const m=Math.round(W*.04);x.strokeStyle=c.ac;x.lineWidth=f==='dupla'?5:2.5;x.strokeRect(m,m,W-2*m,H-2*m);if(f==='dupla'){x.lineWidth=2;x.strokeRect(m+22,m+22,W-2*m-44,H-2*m-44)}
+ if(f==='floral'){x.font='56px serif';x.textAlign='center';[[m,m],[W-m,m],[m,H-m],[W-m,H-m]].forEach(([a,b])=>{x.fillStyle=c.bg;x.fillRect(a-34,b-34,68,68);x.fillStyle=c.ac;x.fillText('❀',a,b+18)})}}
+async function poster(){const e=cur(),c=cols(e),[W,H]=SZ[$('#psz').value],M=$('#pmd').value,cv=h('canvas',{width:W,height:H}),x=cv.getContext('2d'),k=W/1260,n2=!!e.n2,cx=W/2,tall=H/W>1.3;
+ await document.fonts.load(`80px "${e.fonte}"`);x.fillStyle=c.bg;x.fillRect(0,0,W,H);pat(x,W,H,e,c);frm(x,W,H,e,c);
+ const T=(s,px,py,sz,col,f=e.fonte,al='center')=>{x.textAlign=al;x.font=`${sz*k}px "${f}",serif`;x.fillStyle=col;x.fillText(s,px,py)};
+ const d=new Date(e.data.slice(0,10)+'T12:00:00Z').toLocaleDateString('pt-PT',{weekday:'long',day:'numeric',month:'long',year:'numeric',timeZone:'UTC'}),pr=(e.prog||[]).slice(0,tall?5:2),intro=X(e.intro).toUpperCase();
+ if(M==='Minimal'){T(intro,cx,H*.36,34,c.tx,'Montserrat');T(e.n1,cx,H*.47,n2?120:170,c.ac);if(n2){T('&',cx,H*.54,70,c.tx);T(e.n2,cx,H*.63,120,c.ac)}T(d,cx,H*.74,40,c.tx);T(e.cidade||'',cx,H*.79,34,c.tx,'Montserrat')}
+ else if(M==='Moderno'){const L=W*.12;T(intro,L,H*.2,32,c.tx,'Montserrat','left');T(e.n1,L,H*.3,150,c.ac,e.fonte,'left');if(n2)T('& '+e.n2,L,H*.4,150,c.ac,e.fonte,'left');x.fillStyle=c.ac;x.fillRect(L,H*(n2?.44:.35),W*.3,8*k);T(d,L,H*.52,46,c.tx,'Montserrat','left');T(e.cidade||'',L,H*.565,38,c.tx,'Montserrat','left');pr.forEach((p,i)=>T(`${p.h}  ${X(p.t)}`,L,H*.65+i*60*k,34,c.tx,'Montserrat','left'))}
+ else{let y=H*.17;if(M==='Foto'){const im=await loadImg(e.foto);if(im){const r=170*k,cy=y+r;x.save();x.beginPath();x.arc(cx,cy,r,0,7);x.clip();const s=Math.max(2*r/im.width,2*r/im.height);x.drawImage(im,cx-im.width*s/2,cy-im.height*s/2,im.width*s,im.height*s);x.restore();x.strokeStyle=c.ac;x.lineWidth=6;x.beginPath();x.arc(cx,cy,r,0,7);x.stroke();y=cy+r+60*k}}
+  T(intro,cx,y+=40*k,40,c.tx,'Montserrat');T(e.n1,cx,y+=(n2?140:170)*k,n2?140:170,c.ac);if(n2){T('&',cx,y+=100*k,80,c.tx);T(e.n2,cx,y+=140*k,140,c.ac)}x.fillStyle=c.ac;x.fillRect(cx-90*k,y+=50*k,180*k,3);
+  T(d,cx,y+=90*k,48,c.tx);T(e.cidade||'',cx,y+=65*k,40,c.tx,'Montserrat');y+=40*k;pr.forEach(p=>T(`${p.h}  ·  ${X(p.t)}`,cx,y+=58*k,34,c.tx,'Montserrat'))}
+ const u=$('#pqr').value.trim();if(u){const q=h('canvas');await new Promise(r=>QRCode.toCanvas(q,u,{width:240,margin:1,color:{dark:c.tx,light:c.bg}},r));const s=(tall?220:170)*k;x.drawImage(q,tall?cx-s/2:W-s-W*.08,H-s-H*.07,s,s)}return cv}
+const blob=(cv,t,q)=>new Promise(r=>cv.toBlob(r,t,q));
+$('#pi').onclick=async()=>dlf('cartaz-'+slug()+'.png',await blob(await poster(),'image/png'));
+$('#pj').onclick=async()=>dlf('cartaz-'+slug()+'.jpg',await blob(await poster(),'image/jpeg',.92));
+$('#pp').onclick=async()=>{const cv=await poster(),j=new Uint8Array(await (await blob(cv,'image/jpeg',.92)).arrayBuffer()),en=new TextEncoder(),Pp=[],o=[],ph=Math.round(420*cv.height/cv.width);let n=0;
+ const a=v=>{const b=typeof v==='string'?en.encode(v):v;Pp.push(b);n+=b.length},ob=(i,s)=>{o[i]=n;a(`${i} 0 obj\n${s}\nendobj\n`)};
+ a('%PDF-1.4\n');ob(1,'<</Type/Catalog/Pages 2 0 R>>');ob(2,'<</Type/Pages/Kids[3 0 R]/Count 1>>');ob(3,`<</Type/Page/Parent 2 0 R/MediaBox[0 0 420 ${ph}]/Resources<</XObject<</I 4 0 R>>>>/Contents 5 0 R>>`);
+ o[4]=n;a(`4 0 obj\n<</Type/XObject/Subtype/Image/Width ${cv.width}/Height ${cv.height}/ColorSpace/DeviceRGB/BitsPerComponent 8/Filter/DCTDecode/Length ${j.length}>>\nstream\n`);a(j);a('\nendstream\nendobj\n');
+ const cs2=`q 420 0 0 ${ph} 0 0 cm /I Do Q`;ob(5,`<</Length ${cs2.length}>>\nstream\n${cs2}\nendstream`);const xr=n;
+ a('xref\n0 6\n0000000000 65535 f \n'+[1,2,3,4,5].map(i=>String(o[i]).padStart(10,'0')+' 00000 n \n').join('')+`trailer\n<</Size 6/Root 1 0 R>>\nstartxref\n${xr}\n%%EOF`);dlf('cartaz-'+slug()+'.pdf',new Blob(Pp,{type:'application/pdf'}))};
+cloudUI();sel();form();
+</script></body></html>

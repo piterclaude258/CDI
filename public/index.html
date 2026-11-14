@@ -1,0 +1,88 @@
+<!DOCTYPE html><html lang="pt-PT"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Convite</title><meta name="theme-color" content="#fbf6ef"><link rel="preconnect" href="https://www.gstatic.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="style.css"></head>
+<body><div id="lg"><button data-l="pt">PT</button><button data-l="en">EN</button></div><div id="app"></div><div id="lb"><button id="lx" style="top:14px;right:14px">✕</button><button id="lp" style="left:10px">‹</button><img alt=""><button id="ln" style="right:10px">›</button></div>
+<script type="module">
+import {FB,EV as E0} from './config.js';
+let EV=E0;const PH={};const R=u=>u&&u.startsWith('fb:')?(PH[u]||''):(u||'');
+import {initializeApp} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+import {initializeAppCheck,ReCaptchaV3Provider} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app-check.js';
+import {getAuth,signInAnonymously,connectAuthEmulator} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+import {OPT} from './opcoes.js';
+import {getFirestore,connectFirestoreEmulator,writeBatch,doc,getDoc,updateDoc,collection,query,where,onSnapshot,serverTimestamp} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+const $=s=>document.querySelector(s),qp=new URLSearchParams(location.search),app=initializeApp(FB),emu=qp.get('emu')==='1';
+if(OPT.recaptcha&&!emu)initializeAppCheck(app,{provider:new ReCaptchaV3Provider(OPT.recaptcha),isTokenAutoRefreshEnabled:true});
+const db=getFirestore(app),auth=getAuth(app);if(emu){connectFirestoreEmulator(db,'localhost',8080);connectAuthEmulator(auth,'http://localhost:9099',{disableWarnings:true})}
+const RM=matchMedia('(prefers-reduced-motion:reduce)').matches;
+const UI={pt:{open:'Ver Convite',prog:'Programa',dress:'Código de vestuário',gal:'Galeria',gifts:'Presentes',faq:'Perguntas frequentes',soon:'Falta pouco…',rsvp:'Confirmar presença',wish:'Felicitações',d:'dias',h:'h',m:'min',s:'s',map:'Mapa',gcal:'Google Calendar',ics:'Calendário (.ics)',yes:'Confirmo',diet:'Restrições alimentares (opcional)',obs:'Observações (opcional)',no:'Não poderei ir',nm:'O seu nome',msg:'A sua mensagem',send:'Enviar',copy:'Copiar',ok:'Copiado',hi:'Exmo(a) Sr.(a)',link:'Abra o convite pelo seu link pessoal para confirmar a presença.',valid:n=>`Convite válido para até ${n} pessoa(s)`,kids:', não extensivo a crianças.',pp:n=>`${n} pessoa(s)`,conf:n=>`Presença confirmada (${n}). Pode alterar abaixo.`,dec:'Indicou que não poderá comparecer.',thx:'Obrigado!',pend:'Obrigado! A mensagem aparecerá após aprovação.',fail:'Não foi possível enviar.',wait:'Aguarde um minuto antes de enviar outra mensagem.',bad:'A mensagem contém links ou palavras não permitidas.',share:'Partilhar convite',sm:'Está convidado(a) para',loc:'pt-PT'},
+en:{open:'Open invitation',prog:'Schedule',dress:'Dress code',gal:'Gallery',gifts:'Gifts',faq:'FAQ',soon:'Almost time…',rsvp:'RSVP',wish:'Well wishes',d:'days',h:'h',m:'min',s:'s',map:'Map',gcal:'Google Calendar',ics:'Calendar (.ics)',yes:'I will attend',diet:'Dietary requirements (optional)',obs:'Notes (optional)',no:'I cannot attend',nm:'Your name',msg:'Your message',send:'Send',copy:'Copy',ok:'Copied',hi:'Dear guest',link:'Open the invitation through your personal link to RSVP.',valid:n=>`Invitation valid for up to ${n} guest(s)`,kids:', children not included.',pp:n=>`${n} guest(s)`,conf:n=>`Attendance confirmed (${n}). You can change it below.`,dec:'You said you cannot attend.',thx:'Thank you!',pend:'Thank you! Your message will appear after approval.',fail:'Could not send.',wait:'Please wait a minute before sending another message.',bad:'The message contains links or blocked words.',share:'Share invitation',sm:'You are invited to',loc:'en-GB'}};
+const TH={'Clássico dourado':{bg:'#fbf6ef',ac:'#b8924a',tx:'#3b3228'},'Romântico':{bg:'#fff1f3',ac:'#c2587a',tx:'#4a2a35'},'Moderno':{bg:'#f4f6f8',ac:'#1f6feb',tx:'#14202e'},'Natureza':{bg:'#f1f5ec',ac:'#4f7a3a',tx:'#26331f'},'Noite':{bg:'#14161f',ac:'#d9b45a',tx:'#f1ecdf'},'Rosa blush':{bg:'#fdf0ee',ac:'#c9806f',tx:'#4b3430'},'Azul real':{bg:'#f2f5fb',ac:'#1d3f8a',tx:'#1b2438'}};
+const FT={'Cormorant Garamond':'Cormorant+Garamond:wght@400;600','Playfair Display':'Playfair+Display','Great Vibes':'Great+Vibes','Montserrat':'Montserrat:wght@400;600','Dancing Script':'Dancing+Script','Cinzel':'Cinzel','Lora':'Lora'};
+let c,fl;function theme(){c={...(TH[EV.tema]||TH['Clássico dourado']),...EV.cores};const r=document.documentElement.style;
+r.setProperty('--bg',c.bg);r.setProperty('--ac',c.ac);r.setProperty('--tx',c.tx);r.setProperty('--hf',`'${EV.fonte}'`);r.setProperty('--bf',"'Montserrat'");
+fl?.remove();fl=Object.assign(document.createElement('link'),{rel:'stylesheet',href:`https://fonts.googleapis.com/css2?family=${FT[EV.fonte]||FT['Cormorant Garamond']}&family=Montserrat:wght@400;600&display=swap`});document.head.append(fl);
+document.body.className='m-'+EV.moldura+' p-'+EV.padrao}theme();
+let lang=qp.get('l')==='en'?'en':'pt',opened=false,g=null,ref=null,W=[],raf,li=0;const code=qp.get('c');let fz,ymd,hm,T0;const at=(h,m)=>Date.UTC(ymd[0],ymd[1]-1,ymd[2],h-fz,m);function calc(){fz=EV.fuso??2;ymd=EV.data.slice(0,10).split('-').map(Number);hm=EV.data.slice(11,16).split(':').map(Number);T0=at(hm[0],hm[1])}calc();
+const L=()=>UI[lang],X=v=>v&&typeof v==='object'?(v[lang]||v.pt):v;
+const NM=()=>EV.n2?EV.n1+' &amp; '+EV.n2:EV.n1,NP=()=>EV.n2?NP():EV.n1;
+let au=null;const mkau=()=>{if(!au&&EV.musica&&parent===window)au=Object.assign(document.createElement('audio'),{loop:true,src:EV.musica})};mkau();
+const fmt=t=>new Date(t).toISOString().replace(/[-:]|\.\d{3}/g,'');
+const times=p=>{const m=/(\d{1,2})\s*[Hh:]\s*(\d{2})?/.exec(p.h)||[0,hm[0],0],a=at(+m[1],+(m[2]||0));return [a,a+(p.dur||60)*6e4]};
+const geoOf=p=>p.geo||encodeURIComponent(X(p.l)+' '+EV.cidade);
+const S=(id,inner,bg)=>`<section id="${id}" class="${bg?'bg':''}" ${bg?`data-bg="${bg}" style="background-image:url('${bg}')"`:''}><div class="in- rv">${inner}</div></section>`;
+const H=t=>`<h2 class="big" style="font-size:44px">${t}</h2><div class="dv">❀</div>`;
+function render(){const u=L(),ini=(EV.n1[0]||'')+(EV.n2?'&amp;'+EV.n2[0]:''),dtx=new Date(T0+fz*36e5).toLocaleDateString(u.loc,{weekday:'long',day:'numeric',month:'long',year:'numeric',timeZone:'UTC'});
+ document.documentElement.lang=lang;document.querySelectorAll('#lg button').forEach(b=>b.classList.toggle('on',b.dataset.l===lang));
+ const prog=EV.prog.map((p,i)=>`<div class="card"><h3>${X(p.t)}</h3><div class="hf" style="font-size:26px;color:var(--ac)">${p.h}</div><p>${X(p.l)}</p><div class="row">${p.m?`<a class="bt" href="${p.m}" target="_blank" rel="noopener">${u.map}</a>`:''}<a class="bt" href="https://waze.com/ul?${p.geo?'ll='+p.geo:'q='+geoOf(p)}&navigate=yes" target="_blank" rel="noopener">Waze</a><a class="bt" href="https://www.google.com/maps/dir/?api=1&destination=${geoOf(p)}" target="_blank" rel="noopener">Google Maps</a></div><div class="row"><a class="bt" target="_blank" rel="noopener" href="https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(X(EV.intro)+' '+NP()+' — '+X(p.t))}&dates=${fmt(times(p)[0])}/${fmt(times(p)[1])}&location=${encodeURIComponent(X(p.l)+', '+EV.cidade)}">${u.gcal}</a><button data-ics="${i}">${u.ics}</button></div></div>`).join('');
+ const lim=g?`<p class="note" id="lim">${u.valid(g.max)}${EV.criancas?'.':u.kids}</p>`:'';
+ $('#app').innerHTML=`<div id="cover" class="${opened?'gone':''}"><canvas id="fx"></canvas>${R(EV.foto)?`<img class="ph" src="${R(EV.foto)}" alt="">`:`<div class="mono">${ini}</div>`}<div>${X(EV.intro)}</div><h1 class="big">${NM()}</h1><button id="open" class="bt f">${u.open}</button></div>
+${S('hero',`<div>${X(EV.intro)}</div><h1 class="big">${NM()}</h1><div class="dv">❀</div><p class="hf" style="font-size:24px;text-transform:capitalize">${dtx}</p><p>${EV.cidade}</p><button id="sh" class="bt">${u.share}</button>`)}
+${S('info',`<h2 id="hi" class="hf" style="font-size:30px">${g?(lang==='en'?'Dear ':'Exmo(a) ')+g.name+',':u.hi}</h2><p>${X(EV.texto)}</p>${lim}`,R(EV.fundos?.info))}
+${S('programa',H(u.prog)+prog,R(EV.fundos?.programa))}
+${EV.vestuario?S('vest',H(u.dress)+`<p>${X(EV.vestuario.texto)}</p>`+(EV.vestuario.cores||[]).map(x=>`<span class="sw" style="background:${x}"></span>`).join('')):''}
+${EV.galeria?.length?S('gal',H(u.gal)+`<div class="gal">${EV.galeria.map((s,i)=>`<img src="${R(s)}" data-i="${i}" loading="lazy" alt="">`).join('')}</div>`,R(EV.fundos?.galeria)):''}
+${EV.presentes?S('pres',H(u.gifts)+`<p>${X(EV.presentes.texto)}</p>`+EV.presentes.itens.map(i=>`<div class="card"><b>${X(i.t)}</b><br>${i.v} <button data-cp="${i.v}">${u.copy}</button></div>`).join('')):''}
+${EV.faq?.length?S('faq',H(u.faq)+EV.faq.map(f=>`<details class="card"><summary>${X(f.q)}</summary><p>${X(f.a)}</p></details>`).join('')):''}
+${S('cdw',H(u.soon)+`<div id="cd"><div><b>0</b>${u.d}</div><div><b>0</b>${u.h}</div><div><b>0</b>${u.m}</div><div><b>0</b>${u.s}</div></div>`)}
+${S('rs',H(u.rsvp)+`<div id="st"></div><p id="rh">${u.link}</p><div id="rf" hidden><select id="ct"></select><br><textarea id="dd" rows="2" maxlength="200" placeholder="${u.diet}"></textarea><br><textarea id="oo" rows="2" maxlength="300" placeholder="${u.obs}"></textarea><br><button id="y" class="bt f">${u.yes}</button><button id="n" class="bt">${u.no}</button></div>`)}
+${S('fel',H(u.wish)+`<input id="fn" placeholder="${u.nm}" maxlength="80"><br><textarea id="fm" rows="3" maxlength="500" placeholder="${u.msg}"></textarea><br><button id="fb" class="bt f">${u.send}</button><p id="fs"></p><div id="wl"></div>`)}`;
+ const io=new IntersectionObserver(e=>e.forEach(x=>x.isIntersecting&&x.target.classList.add('in')),{threshold:.1});document.querySelectorAll('.rv').forEach(e=>io.observe(e));
+ document.querySelectorAll('[data-ics]').forEach(b=>b.onclick=()=>{const p=EV.prog[+b.dataset.ics],[a,z]=times(p),e=s=>String(s).replace(/[,;]/g,'\\$&');
+  const ics=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Convite//PT','BEGIN:VEVENT','UID:'+fmt(a)+'-'+b.dataset.ics+'@convite','DTSTAMP:'+fmt(Date.now()),'DTSTART:'+fmt(a),'DTEND:'+fmt(z),'SUMMARY:'+e(X(EV.intro)+' '+NP()+' — '+X(p.t)),'LOCATION:'+e(X(p.l)+', '+EV.cidade),'END:VEVENT','END:VCALENDAR'].join('\r\n');
+  Object.assign(document.createElement('a'),{href:URL.createObjectURL(new Blob([ics],{type:'text/calendar'})),download:'evento-'+(+b.dataset.ics+1)+'.ics'}).click()});
+ $('#sh').onclick=()=>{const url=location.origin+location.pathname,tx=`${u.sm} ${X(EV.intro)} ${NP()}`;navigator.share?navigator.share({title:tx,text:tx,url}).catch(()=>{}):window.open('https://wa.me/?text='+encodeURIComponent(tx+' '+url),'_blank')};
+ document.querySelectorAll('[data-cp]').forEach(b=>b.onclick=()=>navigator.clipboard.writeText(b.dataset.cp).then(()=>b.textContent=u.ok));
+ document.querySelectorAll('.gal img').forEach(im=>im.onclick=()=>show(+im.dataset.i));
+ const bgs=[...document.querySelectorAll('[data-bg]')];onscroll=()=>bgs.forEach(s=>{s.style.backgroundPosition=`center ${-s.getBoundingClientRect().top*.25}px`});
+ $('#open').onclick=()=>{opened=true;$('#cover').classList.add('gone');setTimeout(()=>cancelAnimationFrame(raf),900);if(au){au.play().catch(()=>{});mb()}};
+ if(!opened)fx();mb();paintW();guestUI();
+ $('#fb').onclick=async()=>{const n=$('#fn').value.trim(),m=$('#fm').value.trim(),fs=$('#fs');if(!n||!m)return;
+  const tx=(n+' '+m).toLowerCase();if(/https?:|www\.|\.com\b/.test(tx)||OPT.palavras.some(w=>w&&tx.includes(w.toLowerCase()))){fs.textContent=u.bad;return}
+  let last=0;try{last=+localStorage.getItem('wish-at')||0}catch(_){}
+  if(Date.now()-last<Math.max(60,OPT.espera)*1000){fs.textContent=u.wait;return}
+  try{if(!auth.currentUser)await signInAnonymously(auth);const id=auth.currentUser.uid,b=writeBatch(db);
+   b.set(doc(db,'limits',id),{at:serverTimestamp()});b.set(doc(collection(db,'wishes')),{name:n,msg:m,approved:false,at:serverTimestamp(),uid:id});await b.commit();
+   try{localStorage.setItem('wish-at',Date.now())}catch(_){}$('#fm').value='';fs.textContent=u.pend}catch(e){fs.textContent=e.code==='permission-denied'?u.wait:u.fail}};
+}
+function mb(){let b=$('#mb');if(!au)return;if(!b){b=document.createElement('button');b.id='mb';b.textContent='♪';b.onclick=()=>au.paused?au.play():au.pause();document.body.append(b)}}
+function fx(){cancelAnimationFrame(raf);const cv=$('#fx'),x=cv.getContext('2d');cv.width=innerWidth;cv.height=innerHeight;if(EV.efeito==='nenhum'||RM)return;
+ const cols=EV.efeito==='confetes'?['#e74c3c','#f1c40f','#3498db','#2ecc71',c.ac]:[c.ac,'#f4c2c2','#fff'];
+ const P=Array.from({length:(navigator.hardwareConcurrency||4)<=4?14:36},()=>({x:Math.random()*cv.width,y:-Math.random()*cv.height,s:6+Math.random()*9,v:.6+Math.random()*1.4,a:Math.random()*6,w:Math.random()*.05,c:cols[Math.random()*cols.length|0]}));
+ (function f(){x.clearRect(0,0,cv.width,cv.height);P.forEach(p=>{p.y+=p.v;p.a+=p.w+.02;p.x+=Math.sin(p.a)*.8;if(p.y>cv.height+20){p.y=-20;p.x=Math.random()*cv.width}
+  x.save();x.translate(p.x,p.y);x.rotate(p.a);x.fillStyle=p.c;x.globalAlpha=.8;EV.efeito==='confetes'?x.fillRect(-p.s/2,-p.s/4,p.s,p.s/2):(x.beginPath(),x.ellipse(0,0,p.s,p.s/2.2,0,0,7),x.fill());x.restore()});raf=requestAnimationFrame(f)})()}
+setInterval(()=>{const s=Math.max(0,Math.floor((T0-Date.now())/1000)),v=[Math.floor(s/86400),Math.floor(s%86400/3600),Math.floor(s%3600/60),s%60];document.querySelectorAll('#cd b').forEach((b,i)=>b.textContent=v[i])},1000);
+const lb=$('#lb'),show=i=>{li=(i+EV.galeria.length)%EV.galeria.length;lb.querySelector('img').src=R(EV.galeria[li]);lb.style.display='flex'};
+$('#lx').onclick=()=>lb.style.display='none';$('#lp').onclick=()=>show(li-1);$('#ln').onclick=()=>show(li+1);
+document.querySelectorAll('#lg button').forEach(b=>b.onclick=()=>{lang=b.dataset.l;render()});
+function guestUI(){if(!g)return;const u=L();$('#rh').hidden=true;$('#rf').hidden=false;
+ $('#dd').value=g.diet||'';$('#oo').value=g.obs||'';$('#ct').innerHTML=Array.from({length:g.max},(_,i)=>`<option value="${i+1}">${u.pp(i+1)}</option>`).join('');
+ const sh=()=>$('#st').textContent=g.status==='confirmado'?u.conf(g.count):g.status==='recusado'?u.dec:'';sh();
+ const send=async st=>{if(!ref){alert('Pré-visualização');return}const n=st==='confirmado'?+$('#ct').value:0;const diet=$('#dd').value.trim().slice(0,200),obs=$('#oo').value.trim().slice(0,300);await updateDoc(ref,{status:st,count:n,diet,obs,answeredAt:serverTimestamp()});g.status=st;g.count=n;g.diet=diet;g.obs=obs;sh();alert(u.thx)};
+ $('#y').onclick=()=>send('confirmado');$('#n').onclick=()=>send('recusado')}
+function paintW(){const l=$('#wl');l.textContent='';W.forEach(w=>{const e=document.createElement('div');e.className='w';const b=document.createElement('b');b.textContent=w.name;e.append(b,w.msg);l.append(e)})}
+onSnapshot(query(collection(db,'wishes'),where('approved','==',true)),sn=>{W=sn.docs.map(z=>z.data()).sort((a,b)=>(b.at?.seconds||0)-(a.at?.seconds||0));paintW()},()=>{});
+addEventListener('message',e=>{const d=e.data;if(!d||parent===window)return;if(d.ev){EV=d.ev;theme();calc()}if('guest' in d)g=d.guest;if(d.lang)lang=d.lang;render();loadPh().then(render)});parent!==window&&parent.postMessage({ready:1},'*');
+async function loadPh(){const ids=[EV.foto,...Object.values(EV.fundos||{}),...(EV.galeria||[])].filter(x=>x&&x.startsWith('fb:')&&!PH[x]);
+ await Promise.all(ids.map(async x=>{try{const sn=await getDoc(doc(db,'fotos',x.slice(3)));if(sn.exists())PH[x]=sn.data().data}catch(_){}}))}
+if(parent===window)try{const sn=await Promise.race([getDoc(doc(db,'publico','evento')),new Promise(r=>setTimeout(r,2500))]);if(sn&&sn.exists&&sn.exists()){EV=JSON.parse(sn.data().json);theme();calc();mkau()}}catch(_){}
+render();loadPh().then(render);
+if(code)try{ref=doc(db,'guests',code);const s=await getDoc(ref);if(s.exists()){g=s.data();if(g.lang&&!qp.get('l'))lang=g.lang;render();if(!g.seen)updateDoc(ref,{seen:true,seenAt:serverTimestamp()})}}catch(e){console.error(e)}
+</script></body></html>

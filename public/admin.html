@@ -1,0 +1,98 @@
+<!DOCTYPE html><html lang="pt-PT"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Painel</title><link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<style>body{text-align:left;background:#f6f4ef;color:#222}section{max-width:1100px;margin:auto;padding:16px 20px}table{width:100%;border-collapse:collapse;font-size:13px}td,th{padding:5px;border-bottom:1px solid #ccc;text-align:left;vertical-align:top}
+.tag{padding:2px 8px;border-radius:10px;background:#ddd}.confirmado{background:#bfe6c3}.recusado{background:#f2bcbc}input,select,textarea{max-width:none;width:auto;margin:2px;padding:6px}button{margin:2px;padding:5px 10px;font-size:13px}
+.row{display:flex;flex-wrap:wrap;gap:4px;align-items:center;justify-content:flex-start}.bar{display:flex;align-items:center;gap:8px;margin:3px 0;font-size:13px}.bar span{width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.bar .t{flex:1;display:flex;height:16px;background:#e5e1d8;border-radius:8px;overflow:hidden}.bar .t i{display:block;height:100%}
+.g1{background:#5fae6b}.g2{background:#d96b6b}.g3{background:#b9b3a5}.md{position:fixed;inset:0;background:#000b;display:flex;align-items:center;justify-content:center;z-index:50}.md>div{background:#fff;padding:16px;border-radius:12px;max-width:420px;width:92%}.md label{display:block;font-size:12px;margin-top:6px}.md input,.md select{width:100%}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}.cards div{background:#fff;border-radius:10px;padding:10px;text-align:center}.cards b{display:block;font-size:24px}</style></head>
+<body><section id="lg"><h2>Painel do anfitrião</h2><input id="em" type="email" placeholder="Email"><br><input id="pw" type="password" placeholder="Palavra-passe"><br><button id="in">Entrar</button><p id="er"></p></section>
+<div id="ad" hidden>
+<section><h2>Resumo <small id="me"></small></h2><div class="cards" id="sm"></div><h3>Confirmações por dia (pessoas)</h3><div id="c1"></div><h3>Por grupo <small style="font-weight:400">■ confirmados ■ recusaram ■ sem resposta</small></h3><div id="c2"></div>
+<div class="row"><button id="ex">Exportar CSV (Excel)</button><button id="bk">Cópia de segurança (.json)</button><button id="rst">Restaurar</button><input type="file" id="rf" accept=".json" hidden><button id="out">Sair</button></div></section>
+<section><h2>Adicionar convidado</h2><div class="row"><input id="gn" placeholder="Nome"><input id="gp" placeholder="WhatsApp (258...)"><input id="gm" type="number" min="1" value="1" style="width:70px" title="Máx. pessoas"><select id="gl"><option value="pt">pt</option><option value="en">en</option></select><input id="gg" list="dl" placeholder="Grupo"><input id="gt" placeholder="Mesa" style="width:80px"><button id="ga">Adicionar</button></div><datalist id="dl"></datalist>
+<details><summary>Importar lista</summary><p>Uma linha por convidado: <code>Nome;WhatsApp;Máx;pt/en;Grupo;Mesa</code> (cole do Excel).</p><textarea id="im" rows="4" style="width:100%"></textarea><br><button id="imb">Importar</button> <button id="qg">QR do convite geral</button></details></section>
+<section><h2>Convidados <small id="cnt"></small></h2><div class="row"><input id="fq" placeholder="🔎 Pesquisar nome ou telefone"><select id="fs"><option value="">Estado: todos</option><option>pendente</option><option>confirmado</option><option>recusado</option></select><select id="fl"><option value="">Idioma: todos</option><option>pt</option><option>en</option></select><select id="fv"><option value="">Visto: todos</option><option value="n">Não viram</option><option value="s">Viram</option></select><select id="fi"><option value="">Convite: todos</option><option value="n">Por enviar</option><option value="s">Enviado</option></select><select id="fg"></select><select id="ft"></select></div>
+<div class="row"><b>Envio em massa:</b><button id="mq">Abrir próximo no WhatsApp</button><button id="ml">Copiar tabela de links</button><button id="mm">Copiar mensagens</button><small id="mi"></small></div>
+<div style="overflow-x:auto"><table id="tb"></table></div></section>
+<section><h2>Mesas</h2><div id="mesas"></div></section>
+<section><h2>Felicitações (moderação)</h2><div id="wl"></div></section>
+<section><h2>Anfitriões com acesso</h2><div id="ads"></div><div class="row"><input id="ae" type="email" placeholder="email@exemplo.com"><button id="aa">Adicionar</button></div><small>Crie primeiro a conta em Firebase &gt; Authentication &gt; Utilizadores. Só o proprietário (email nas regras) pode alterar esta lista.</small></section></div>
+<script type="module">
+import {FB,EV as E0} from './config.js';
+let EV=E0;
+import {initializeApp} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+import {initializeAppCheck,ReCaptchaV3Provider} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app-check.js';
+import {OPT} from './opcoes.js';
+import {getAuth,connectAuthEmulator,signInWithEmailAndPassword,onAuthStateChanged,signOut} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+import {getFirestore,connectFirestoreEmulator,serverTimestamp,getDoc,collection,doc,setDoc,updateDoc,deleteDoc,onSnapshot,increment} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+const X=(v,l)=>v&&typeof v==='object'?(v[l]||v.pt):v,app=initializeApp(FB),emu=new URLSearchParams(location.search).get('emu')==='1';
+if(OPT.recaptcha&&!emu)initializeAppCheck(app,{provider:new ReCaptchaV3Provider(OPT.recaptcha),isTokenAutoRefreshEnabled:true});
+const au=getAuth(app),db=getFirestore(app),$=s=>document.querySelector(s);if(emu){connectFirestoreEmulator(db,'localhost',8080);connectAuthEmulator(au,'http://localhost:9099',{disableWarnings:true})}
+const h=(t,p={},...k)=>{const e=Object.assign(document.createElement(t),p);e.append(...k);return e};
+const kod=()=>{const b=new Uint8Array(12);crypto.getRandomValues(b);return [...b].map(x=>'abcdefghijkmnpqrstuvwxyz23456789'[x%32]).join('')};
+const nm=()=>EV.n1+(EV.n2?' & '+EV.n2:''),link=(c,l)=>location.origin+'/?c='+c+(l==='en'?'&l=en':'');
+const wa=(g,t)=>window.open('https://wa.me/'+(g.phone||'').replace(/\D/g,'')+'?text='+encodeURIComponent(t),'_blank');
+const mInv=g=>g.lang==='en'?`Hello ${g.name}! You are invited to ${X(EV.intro,'en')} ${nm()}: ${link(g.id,'en')}`:`Olá ${g.name}! Tem um convite para ${X(EV.intro,'pt')} ${nm()}: ${link(g.id)}`;
+const mRem=g=>g.lang==='en'?`Hello ${g.name}! Please confirm your attendance: ${link(g.id,'en')}`:`Olá ${g.name}! Lembramos que aguardamos a sua confirmação de presença: ${link(g.id)}`;
+const dt=g=>g.answeredAt?.seconds?new Date(g.answeredAt.seconds*1000).toISOString().slice(0,10):'';
+let G=[],WS=[],ADM=[];
+$('#in').onclick=()=>signInWithEmailAndPassword(au,$('#em').value,$('#pw').value).catch(()=>$('#er').textContent='Credenciais inválidas');
+$('#out').onclick=()=>signOut(au);
+onAuthStateChanged(au,u=>{$('#lg').hidden=!!u;$('#ad').hidden=!u;if(u){$('#me').textContent=u.email;start()}});
+let started=false;
+function start(){if(started)return;started=true;getDoc(doc(db,'publico','evento')).then(x=>{if(x.exists())EV=JSON.parse(x.data().json)}).catch(()=>{});
+ onSnapshot(collection(db,'guests'),s=>{G=s.docs.map(x=>({id:x.id,...x.data()})).sort((a,b)=>a.name.localeCompare(b.name));draw()});
+ onSnapshot(collection(db,'wishes'),s=>{WS=s.docs.map(x=>({id:x.id,...x.data()}));const l=$('#wl');l.textContent='';s.docs.forEach(x=>{const w=x.data();l.append(h('div',{className:'w'},h('b',{textContent:w.name+(w.approved?' ✓':' (pendente)')}),w.msg,h('div',{},
+  w.approved?'':h('button',{textContent:'Aprovar',onclick:()=>updateDoc(x.ref,{approved:true})}),h('button',{textContent:'Apagar',onclick:()=>confirm('Apagar?')&&deleteDoc(x.ref)}))))})});
+ onSnapshot(doc(db,'config','admins'),s=>{ADM=s.data()?.emails||[];drawAdm()},()=>{})}
+function drawAdm(){const l=$('#ads');l.textContent='';ADM.forEach(e=>l.append(h('div',{},e+' ',h('button',{textContent:'Remover',onclick:()=>setDoc(doc(db,'config','admins'),{emails:ADM.filter(x=>x!==e)}).catch(()=>alert('Só o proprietário pode alterar.'))}))));if(!ADM.length)l.textContent='Só o proprietário tem acesso.'}
+$('#aa').onclick=()=>{const e=$('#ae').value.trim().toLowerCase();if(!e)return;setDoc(doc(db,'config','admins'),{emails:[...new Set([...ADM,e])]}).then(()=>$('#ae').value='').catch(()=>alert('Só o proprietário pode alterar.'))};
+const F=()=>({q:$('#fq').value.toLowerCase(),st:$('#fs').value,lg:$('#fl').value,v:$('#fv').value,i:$('#fi').value,g:$('#fg').value,t:$('#ft').value});
+const list=()=>{const f=F();return G.filter(g=>(!f.q||(g.name+' '+(g.phone||'')).toLowerCase().includes(f.q))&&(!f.st||g.status===f.st)&&(!f.lg||(g.lang||'pt')===f.lg)&&(!f.v||(f.v==='s')===!!g.seen)&&(!f.i||(f.i==='s')===!!g.invitedAt)&&(!f.g||g.group===f.g)&&(!f.t||g.mesa===f.t))};
+['fq','fs','fl','fv','fi','fg','ft'].forEach(i=>$('#'+i).oninput=()=>draw());
+function opts(sel,label,vals){const v=sel.value;sel.innerHTML='';sel.append(h('option',{value:'',textContent:label}),...vals.map(x=>h('option',{textContent:x})));sel.value=vals.includes(v)?v:''}
+const bar=(l,segs,txt)=>h('div',{className:'bar'},h('span',{textContent:l,title:l}),h('div',{className:'t'},...segs.map(([n,c,tot])=>h('i',{className:c,style:`width:${tot?n/tot*100:0}%`}))),h('b',{textContent:txt}));
+function draw(){const conf=G.filter(g=>g.status==='confirmado'),pp=conf.reduce((a,g)=>a+(g.count||0),0);
+ const grs=[...new Set(G.map(g=>g.group).filter(Boolean))].sort(),mes=[...new Set(G.map(g=>g.mesa).filter(Boolean))].sort();
+ $('#dl').innerHTML=grs.map(x=>`<option value="${x.replace(/"/g,'&quot;')}">`).join('');opts($('#fg'),'Grupo: todos',grs);opts($('#ft'),'Mesa: todas',mes);
+ $('#sm').textContent='';[['Convidados',G.length],['Viram',G.filter(g=>g.seen).length],['Confirmaram',conf.length],['Pessoas confirmadas',pp],['Recusaram',G.filter(g=>g.status==='recusado').length],['Sem resposta',G.filter(g=>g.status==='pendente').length],['Com restrições',G.filter(g=>g.diet).length]].forEach(([l,v])=>$('#sm').append(h('div',{},h('b',{textContent:v}),l)));
+ const dias={};conf.forEach(g=>{const d=dt(g);if(d)dias[d]=(dias[d]||0)+(g.count||0)});const mx=Math.max(1,...Object.values(dias));
+ $('#c1').textContent='';Object.keys(dias).sort().forEach(d=>$('#c1').append(bar(d,[[dias[d],'g1',mx]],dias[d])));if(!Object.keys(dias).length)$('#c1').textContent='Ainda sem confirmações.';
+ $('#c2').textContent='';[...grs,''].forEach(gr=>{const a=G.filter(g=>(g.group||'')===gr);if(!a.length)return;const c=a.filter(g=>g.status==='confirmado'),r=a.filter(g=>g.status==='recusado'),p=a.length-c.length-r.length;
+  $('#c2').append(bar(gr||'Sem grupo',[[c.length,'g1',a.length],[r.length,'g2',a.length],[p,'g3',a.length]],`${c.reduce((x,g)=>x+(g.count||0),0)} pessoas / ${a.length}`))});
+ const L=list();$('#cnt').textContent=`(${L.length} de ${G.length})`;
+ const t=$('#tb');t.textContent='';t.append(h('tr',{},...['Nome','Grupo','Mesa','Estado','Pessoas','Visto','Convite','Dieta / Obs.','Lembr.','Ações'].map(x=>h('th',{textContent:x}))));
+ L.forEach(g=>t.append(h('tr',{},h('td',{textContent:g.name+' ('+(g.lang||'pt')+')'}),h('td',{textContent:g.group||''}),h('td',{textContent:g.mesa||''}),h('td',{},h('span',{className:'tag '+g.status,textContent:g.status})),
+  h('td',{textContent:g.status==='confirmado'?g.count+'/'+g.max:'máx '+g.max}),h('td',{textContent:g.seen?'sim':'não'}),h('td',{textContent:g.invitedAt?'enviado':'—'}),h('td',{textContent:[g.diet,g.obs].filter(Boolean).join(' · ')}),h('td',{textContent:g.reminders||0}),
+  h('td',{},h('button',{textContent:'Editar',onclick:()=>edit(g)}),h('button',{textContent:'Convidar',onclick:()=>{wa(g,mInv(g));updateDoc(doc(db,'guests',g.id),{invitedAt:serverTimestamp()})}}),
+  g.status==='pendente'?h('button',{textContent:'Lembrar',onclick:()=>{wa(g,mRem(g));updateDoc(doc(db,'guests',g.id),{reminders:increment(1)})}}):'',
+  h('button',{textContent:'QR',onclick:()=>qr(link(g.id,g.lang),g.name)}),h('button',{textContent:'Link',onclick:()=>navigator.clipboard.writeText(link(g.id,g.lang))}),
+  h('button',{textContent:'Apagar',onclick:()=>confirm('Apagar '+g.name+'?')&&deleteDoc(doc(db,'guests',g.id))})))));
+ const m=$('#mesas');m.textContent='';[...mes,''].forEach(x=>{const a=G.filter(g=>(g.mesa||'')===x);if(!a.length)return;const n=a.filter(g=>g.status==='confirmado').reduce((s,g)=>s+(g.count||0),0);
+  m.append(h('div',{className:'card'},h('b',{textContent:(x?'Mesa '+x:'Sem mesa')+' — '+n+' pessoas confirmadas'}),h('div',{textContent:a.map(g=>g.name+(g.status==='confirmado'?' ('+g.count+')':g.status==='recusado'?' ✗':' ?')).join(', ')})))})}
+function edit(g){const f={};const fld=(l,k,t='text',v=g[k]??'')=>{f[k]=h('input',{type:t,value:v});if(k==='group')f[k].setAttribute('list','dl');return h('label',{textContent:l},f[k])};
+ const lg=h('select',{},h('option',{value:'pt',textContent:'pt'}),h('option',{value:'en',textContent:'en'}));lg.value=g.lang||'pt';
+ const box=h('div',{className:'md'},h('div',{},h('h3',{textContent:'Editar convidado'}),fld('Nome','name'),fld('WhatsApp','phone'),fld('Máx. pessoas','max','number'),h('label',{textContent:'Idioma'},lg),fld('Grupo','group'),fld('Mesa','mesa'),
+  h('div',{className:'row',style:'margin-top:10px'},h('button',{textContent:'Guardar',onclick:async()=>{const max=Math.max(1,+f.max.value||1),d={name:f.name.value.trim()||g.name,phone:f.phone.value.trim(),max,lang:lg.value,group:f.group.value.trim(),mesa:f.mesa.value.trim()};
+   if(g.status==='confirmado'&&g.count>max)d.count=max;try{await updateDoc(doc(db,'guests',g.id),d);box.remove()}catch(e){alert('Erro ao guardar.')}}}),h('button',{textContent:'Cancelar',onclick:()=>box.remove()}))));document.body.append(box)}
+function qr(u,n){const cv=h('canvas'),box=h('div',{className:'md'});QRCode.toCanvas(cv,u,{width:300,margin:2},()=>{box.append(h('div',{style:'text-align:center'},h('b',{textContent:n}),h('br'),cv,h('br'),
+ h('button',{textContent:'Descarregar PNG',onclick:()=>h('a',{href:cv.toDataURL('image/png'),download:'qr-'+n.replace(/\W+/g,'-')+'.png'}).click()}),h('button',{textContent:'Fechar',onclick:()=>box.remove()})));document.body.append(box)})}
+$('#qg').onclick=()=>qr(location.origin+'/','Convite');
+$('#ga').onclick=()=>{const n=$('#gn').value.trim();if(!n)return;setDoc(doc(db,'guests',kod()),{name:n,phone:$('#gp').value.trim(),max:Math.max(1,+$('#gm').value||1),lang:$('#gl').value,group:$('#gg').value.trim(),mesa:$('#gt').value.trim(),status:'pendente',count:0,seen:false,reminders:0});$('#gn').value='';$('#gp').value=''};
+$('#imb').onclick=async()=>{const rows=$('#im').value.split('\n').map(l=>l.split(/[;\t]/).map(x=>x.trim())).filter(r=>r[0]);let n=0;
+ for(const r of rows){await setDoc(doc(db,'guests',kod()),{name:r[0],phone:r[1]||'',max:Math.max(1,+r[2]||1),lang:/^en/i.test(r[3]||'')?'en':'pt',group:r[4]||'',mesa:r[5]||'',status:'pendente',count:0,seen:false,reminders:0});n++}$('#im').value='';alert(n+' convidados importados.')};
+// envio em massa (usa os filtros atuais)
+const fila=()=>list().filter(g=>!g.invitedAt&&(g.phone||'').replace(/\D/g,'').length>5);
+const mi=()=>$('#mi').textContent=fila().length+' por convidar (segundo os filtros)';setInterval(()=>{if(G.length)mi()},1500);
+$('#mq').onclick=()=>{const g=fila()[0];if(!g)return alert('Ninguém por convidar com estes filtros.');wa(g,mInv(g));updateDoc(doc(db,'guests',g.id),{invitedAt:serverTimestamp()});mi()};
+$('#ml').onclick=()=>navigator.clipboard.writeText(list().map(g=>[g.name,g.phone||'',g.group||'',link(g.id,g.lang)].join('\t')).join('\n')).then(()=>alert('Tabela copiada: cole no Excel.'));
+$('#mm').onclick=()=>navigator.clipboard.writeText(list().map(g=>g.name+' — '+(g.phone||'')+'\n'+mInv(g)).join('\n\n')).then(()=>alert('Mensagens copiadas.'));
+$('#ex').onclick=()=>{const r=[['Nome','Telefone','Grupo','Mesa','Estado','Pessoas','Máximo','Visto','Convite enviado','Lembretes','Idioma','Restrições alimentares','Observações','Link'],...G.map(g=>[g.name,g.phone,g.group,g.mesa,g.status,g.count||0,g.max,g.seen?'sim':'não',g.invitedAt?'sim':'não',g.reminders||0,g.lang||'pt',g.diet,g.obs,link(g.id,g.lang)])];
+ const csv='\uFEFF'+r.map(x=>x.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(';')).join('\n');h('a',{href:URL.createObjectURL(new Blob([csv],{type:'text/csv'})),download:'convidados.csv'}).click()};
+$('#bk').onclick=()=>{const j=JSON.stringify({v:2,em:new Date().toISOString(),guests:G,wishes:WS},(k,v)=>v&&typeof v==='object'&&'seconds' in v&&'nanoseconds' in v?v.seconds*1000:v,1);
+ h('a',{href:URL.createObjectURL(new Blob([j],{type:'application/json'})),download:'copia-'+new Date().toISOString().slice(0,10)+'.json'}).click()};
+$('#rst').onclick=()=>$('#rf').click();
+$('#rf').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const j=JSON.parse(await f.text());if(!confirm('Restaurar '+j.guests.length+' convidados e '+j.wishes.length+' felicitações?'))return;
+ for(const {id,seenAt,answeredAt,invitedAt,...d} of j.guests)await setDoc(doc(db,'guests',id),d);
+ for(const {id,at,...d} of j.wishes)await setDoc(doc(db,'wishes',id),{...d,at:serverTimestamp()});alert('Restaurado.')}catch(x){alert('Ficheiro inválido.')}e.target.value=''};
+</script></body></html>
